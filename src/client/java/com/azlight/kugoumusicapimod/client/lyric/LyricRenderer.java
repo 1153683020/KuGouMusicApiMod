@@ -68,7 +68,6 @@ public class LyricRenderer {
         startTime = System.currentTimeMillis();
         pauseOffset = 0;
         paused = false;
-        visible = true;
     }
 
     public static void pause() {
