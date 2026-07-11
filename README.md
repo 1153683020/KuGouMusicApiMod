@@ -159,7 +159,7 @@
 本模组使用纯 Java 实现了酷狗音乐的全部签名加密算法，欢迎下载体验。若发现问题或者修复已有问题，欢迎提交 Issue 或 Pull Request。
 
 ## 许可证
-本项目基于 MIT 协议开源，仅供学习研究使用。**严禁**用于商业用途，否则后果自负。
+本项目基于 MIT 协议开源，仅供学习研究使用。**严禁**用于商业用途，否则后果自负。歌曲版权归平台所有，若贵方觉得本项目不妥，可联系本项目更改或移除。保护版权，人人有责。
 
 ## 致谢
 - [KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) Node 版本项目 BY [**MakcRe**](https://github.com/MakcRe)
