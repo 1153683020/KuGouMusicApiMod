@@ -60,9 +60,12 @@ public class MusicCommand {
                                 )
                         )
                         .then(ClientCommandManager.literal("quality")
+                                .executes(ctx -> {
+                                    ctx.getSource().sendFeedback(Text.literal("§a当前默认音质: " + currentQuality));
+                                    return 1;
+                                })
                                 .then(ClientCommandManager.argument("quality", StringArgumentType.word())
                                         .suggests((context, builder) -> {
-                                            // 提示可用的音质选项
                                             String[] options = {"128", "320", "flac", "high", "viper_atmos", "viper_clear", "viper_tape"};
                                             for (String option : options) {
                                                 builder.suggest(option);
@@ -71,7 +74,6 @@ public class MusicCommand {
                                         })
                                         .executes(ctx -> {
                                             String quality = StringArgumentType.getString(ctx, "quality");
-                                            // 你可以添加一个简单的校验，只允许列表中的值
                                             List<String> allowed = Arrays.asList("128", "320", "flac", "high", "viper_atmos", "viper_clear", "viper_tape");
                                             if (allowed.contains(quality)) {
                                                 currentQuality = quality;
@@ -83,6 +85,7 @@ public class MusicCommand {
                                         })
                                 )
                         )
+
                         .then(ClientCommandManager.literal("pause")
                                 .executes(ctx -> {
                                     AudioPlayer.stop();
@@ -1052,7 +1055,7 @@ public class MusicCommand {
         source.sendFeedback(Text.literal("§e/kugou cloud list - 云盘列表"));
         source.sendFeedback(Text.literal("§e/kugou cloud play <hash>,<name>,<audio_id> - 播放云盘歌曲"));
         source.sendFeedback(Text.literal("§e/kugou user - 用户信息"));
-        source.sendFeedback(Text.literal("§e/kugou quality <128|320|flac|high|viper_...> - 设置默认音质"));
+        source.sendFeedback(Text.literal("§e/kugou quality <128|320|flac|high|viper_...> - 设置默认音质，不带参为显示当前音质"));
     }
 
 }
