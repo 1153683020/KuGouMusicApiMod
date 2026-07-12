@@ -41,7 +41,7 @@
 - `/kugou pause` – 暂停
 - `/kugou resume` – 继续
 - `/kugou stop` – 停止
-- `/kugou quality <128|320|flac|...>` – 设置默认音质
+- `/kugou quality <128|320|flac|...>` – 设置默认音质，如果不携带参数则为显示当前音质
 
 ### 歌词
 - `/kugou lyric off` – 关闭歌词（默认）
@@ -70,7 +70,7 @@
 - `/kugou user` – 查询用户详情
 
 ### 帮助
-- `/kugou help` – 查看帮助
+- `/kugou help` – 查看帮助手册
 
 ## 配置文件
 首次启动后模组会在 `config/kugou_config.json` 生成凭证。内容示例：
