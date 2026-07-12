@@ -7,6 +7,9 @@ import com.azlight.kugoumusicapimod.util.KugouApiClient;
 import com.azlight.kugoumusicapimod.util.KugouConfig;
 import com.azlight.kugoumusicapimod.util.KugouUtils;
 import net.fabricmc.api.ClientModInitializer;
+import com.azlight.kugoumusicapimod.client.audio.AudioPlayer;
+import com.azlight.kugoumusicapimod.client.lyric.LyricRenderer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
@@ -16,6 +19,11 @@ public class KugouMusicApiMod implements ClientModInitializer {
     public void onInitializeClient() {
         // 加载配置
         KugouConfig config = KugouConfig.getInstance();
+
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+        AudioPlayer.stop();
+        LyricRenderer.setLyrics(null);
+        });
 
         String mid;
         if (!config.mid.isEmpty()) {
