@@ -19,9 +19,8 @@ import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+
+import java.util.*;
 
 public class MusicCommand {
 
@@ -62,9 +61,24 @@ public class MusicCommand {
                         )
                         .then(ClientCommandManager.literal("quality")
                                 .then(ClientCommandManager.argument("quality", StringArgumentType.word())
+                                        .suggests((context, builder) -> {
+                                            // 提示可用的音质选项
+                                            String[] options = {"128", "320", "flac", "high", "viper_atmos", "viper_clear", "viper_tape"};
+                                            for (String option : options) {
+                                                builder.suggest(option);
+                                            }
+                                            return builder.buildFuture();
+                                        })
                                         .executes(ctx -> {
-                                            currentQuality = StringArgumentType.getString(ctx, "quality");
-                                            ctx.getSource().sendFeedback(Text.literal("默认音质已设置为 " + currentQuality));
+                                            String quality = StringArgumentType.getString(ctx, "quality");
+                                            // 你可以添加一个简单的校验，只允许列表中的值
+                                            List<String> allowed = Arrays.asList("128", "320", "flac", "high", "viper_atmos", "viper_clear", "viper_tape");
+                                            if (allowed.contains(quality)) {
+                                                currentQuality = quality;
+                                                ctx.getSource().sendFeedback(Text.literal("§a默认音质已设置为 " + quality));
+                                            } else {
+                                                ctx.getSource().sendError(Text.literal("§c无效的音质选项，可用: " + String.join(", ", allowed)));
+                                            }
                                             return 1;
                                         })
                                 )
@@ -1038,6 +1052,7 @@ public class MusicCommand {
         source.sendFeedback(Text.literal("§e/kugou cloud list - 云盘列表"));
         source.sendFeedback(Text.literal("§e/kugou cloud play <hash>,<name>,<audio_id> - 播放云盘歌曲"));
         source.sendFeedback(Text.literal("§e/kugou user - 用户信息"));
+        source.sendFeedback(Text.literal("§e/kugou quality <128|320|flac|high|viper_...> - 设置默认音质"));
     }
 
 }
