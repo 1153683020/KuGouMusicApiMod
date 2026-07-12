@@ -22,10 +22,6 @@ import net.minecraft.util.Formatting;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 
 public class MusicCommand {
 
@@ -265,11 +261,18 @@ public class MusicCommand {
                                     return 1;
                                 })
                         )
+//                        .then(ClientCommandManager.literal("gui")
+//                                .executes(ctx -> {
+//                                    MinecraftClient.getInstance().execute(() -> {
+//                                        MinecraftClient.getInstance().setScreen(new TestScreen());
+//                                    });
+//                                    return 1;
+//                                })
+//                        )
         );
 
 
     }
-
     private static void login(FabricClientCommandSource source, String phone, String code) {
         source.sendFeedback(Text.literal("§e正在登录..."));
         Map<String, String> cookie = new HashMap<>();
@@ -392,9 +395,11 @@ public class MusicCommand {
                                 albumAudioId = song.get("MixSongID").getAsString();
                             }
                             String cmd = "/kugou play " + hash + "," + albumId + "," + albumAudioId + "," + currentQuality;
-                            Text songLine = Text.literal((i + 1) + ". " + name + " - " + singer + "  §a[播放: " + cmd + "]")
+                            Text songLine = Text.literal((i + 1) + ". " + name + " - " + singer)
                                     .styled(style -> style
-                                            .withColor(Formatting.YELLOW)
+                                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("点击播放")))
+                                            .withColor(Formatting.GREEN)
                                     );
                             source.sendFeedback(Text.literal("").append(songLine));
                         }
@@ -642,6 +647,8 @@ public class MusicCommand {
                                     String cmd = "/kugou playlist songs " + globalId;
                                     Text line = Text.literal((i + 1) + ". " + name + " [" + (pl.has("count") ? pl.get("count").getAsInt() : 0) + "首]")
                                             .styled(style -> style
+                                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("点击查看歌曲")))
                                                     .withColor(Formatting.YELLOW)
                                             );
                                     source.sendFeedback(Text.literal("").append(line));
@@ -708,6 +715,8 @@ public class MusicCommand {
                                     String cmd = "/kugou play " + hash + "," + albumId + "," + mixSongId + "," + currentQuality;
                                     Text line = Text.literal((i + 1) + ". " + name + " - " + singer)
                                             .styled(style -> style
+                                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("点击播放")))
                                                     .withColor(Formatting.GREEN)
                                             );
                                     source.sendFeedback(Text.literal("").append(line));
@@ -873,6 +882,8 @@ public class MusicCommand {
                     String cmd = "/kugou cloud play " + hash + "," + name + "," + audioId;
                     Text line = Text.literal((i + 1) + ". " + name)
                             .styled(style -> style
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("点击播放")))
                                     .withColor(Formatting.AQUA)
                             );
                     source.sendFeedback(Text.literal("").append(line));
