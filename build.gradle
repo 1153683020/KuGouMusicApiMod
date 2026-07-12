@@ -36,7 +36,13 @@ dependencies {
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	modImplementation "javazoom:jlayer:1.0.1"
 	include "javazoom:jlayer:1.0.1"
-	runtimeOnly 'com.googlecode.soundlibs:mp3spi:1.9.5-1'
+	// 添加强大的音频解码库组合
+	implementation 'com.googlecode.soundlibs:mp3spi:1.9.5.4'
+	implementation 'com.googlecode.soundlibs:tritonus-share:0.3.7-2'
+	implementation 'org.jflac:jflac-codec:1.5.1'
+	include 'com.googlecode.soundlibs:mp3spi:1.9.5.4'
+	include 'com.googlecode.soundlibs:tritonus-share:0.3.7-2'
+	include 'org.jflac:jflac-codec:1.5.1'
 }
 
 processResources {
