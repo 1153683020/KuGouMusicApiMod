@@ -15,17 +15,12 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.util.*;
-
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class MusicCommand {
 
@@ -276,6 +271,12 @@ public class MusicCommand {
                                                 })
                                         )
                                 )
+                        )
+                        .then(ClientCommandManager.literal("wxlogin")
+                                .executes(ctx -> {
+                                    startWxLogin(ctx.getSource());
+                                    return 1;
+                                })
                         )
                         .then(ClientCommandManager.literal("help")
                                 .executes(ctx -> {
@@ -1028,6 +1029,70 @@ public class MusicCommand {
             }
         }, MinecraftClient.getInstance());
     }
+    private static ScheduledFuture<?> wxPollingTask;
+
+    private static void startWxLogin(FabricClientCommandSource source) {
+        source.sendFeedback(Text.literal("§e正在生成微信二维码..."));
+        new Thread(() -> {
+            try {
+                JsonObject qrData = WxApi.generateWxQrCode().get(); // 阻塞等待
+                if (qrData == null || !qrData.has("uuid") || !qrData.has("qrcode_image")) {
+                    MinecraftClient.getInstance().execute(() -> source.sendError(Text.literal("§c生成二维码失败")));
+                    return;
+                }
+                String uuid = qrData.get("uuid").getAsString();
+                String base64 = qrData.get("qrcode_image").getAsString();
+
+                MinecraftClient.getInstance().execute(() -> {
+                    MinecraftClient.getInstance().setScreen(new QrCodeScreen(base64, "微信扫码登录"));
+                });
+
+                // 轮询直到成功或失败
+                while (true) {
+                    Thread.sleep(2000);
+                    JsonObject status = WxApi.checkWxQrStatus(uuid).get(); // 同步等待
+                    if (status == null) {
+                        System.out.println("[WxPoll] 轮询返回 null");
+                        continue;
+                    }
+                    int errcode = status.has("wx_errcode") ? status.get("wx_errcode").getAsInt() : -1;
+                    System.out.println("[WxPoll] 状态码: " + errcode);
+                    if (errcode == 405) {
+                        String wxCode = status.has("wx_code") ? status.get("wx_code").getAsString() : "";
+                        System.out.println("[WxPoll] 提取 wx_code: " + wxCode);
+                        if (!wxCode.isEmpty()) {
+                            Map<String, String> cookie = new HashMap<>();
+                            cookie.put("dfid", KugouApiClient.getDfid());
+                            cookie.put("mid", KugouApiClient.getMid());
+                            cookie.put("KUGOU_API_GUID", KugouConfig.getInstance().guid);
+                            cookie.put("KUGOU_API_MAC", KugouConfig.getInstance().mac);
+                            cookie.put("KUGOU_API_DEV", KugouConfig.getInstance().devId);
+                            KugouApiClient.ApiResponse loginResp = LoginApi.loginByOpenPlat(wxCode, cookie).get();
+                            if (loginResp.status == 200) {
+                                MinecraftClient.getInstance().execute(() -> {
+                                    MinecraftClient.getInstance().setScreen(null);
+                                    source.sendFeedback(Text.literal("§a微信登录成功！"));
+                                });
+                            } else {
+                                System.out.println("[WxLogin] 酷狗登录失败: " + loginResp.body);
+                            }
+                            break; // 登录成功/失败后退出轮询
+                        }
+                    } else if (errcode == 403 || errcode == 402) {
+                        MinecraftClient.getInstance().execute(() -> {
+                            MinecraftClient.getInstance().setScreen(null);
+                            source.sendError(Text.literal(errcode == 403 ? "§c登录被拒绝" : "§c二维码已过期"));
+                        });
+                        break;
+                    }
+                    // 408（等待扫码）或 404（已扫描）继续轮询
+                }
+            } catch (Exception e) {
+                MinecraftClient.getInstance().execute(() -> source.sendError(Text.literal("§c微信登录异常: " + e.getMessage())));
+                e.printStackTrace();
+            }
+        }, "WxLoginThread").start();
+    }
 
     private static void showHelp(FabricClientCommandSource source) {
         source.sendFeedback(Text.literal("§6===== KugouMusicAPI 帮助 ====="));
@@ -1046,6 +1111,7 @@ public class MusicCommand {
         source.sendFeedback(Text.literal("§e/kugou cloud play <hash>,<name>,<audio_id> - 播放云盘歌曲"));
         source.sendFeedback(Text.literal("§e/kugou user - 用户信息"));
         source.sendFeedback(Text.literal("§e/kugou quality <128|320|flac|high|viper_...> - 设置默认音质，不带参为显示当前音质"));
+        source.sendFeedback(Text.literal("§e/kugou wxlogin - 微信扫码登录"));
     }
 
 }

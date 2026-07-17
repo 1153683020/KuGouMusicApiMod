@@ -18,10 +18,17 @@ public class QrCodeScreen extends Screen {
     private static final Identifier QR_TEXTURE = Identifier.of("kugoumusicapimod", "qr_login");
     private final String base64Image;
     private int imageWidth = 0, imageHeight = 0;
+    private final Text title;  // 新增
 
-    public QrCodeScreen(String base64Image) {
-        super(Text.literal("酷狗扫码登录"));
+    public QrCodeScreen(String base64Image, String title) {
+        super(Text.literal(title));
         this.base64Image = base64Image;
+        this.title = Text.literal(title);
+    }
+
+    // 兼容旧调用（酷狗扫码）
+    public QrCodeScreen(String base64Image) {
+        this(base64Image, "酷狗扫码登录");
     }
 
     @Override
@@ -53,32 +60,25 @@ public class QrCodeScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-            // 1. 绘制深色背景（避免调用 renderBackground）
-            //context.fill(0, 0, width, height, 0xFF2B2B2B);
-            // 2. 使用与 1.21.1 完全一致的布局算法绘制二维码
-            if (imageWidth > 0 && imageHeight > 0) {
-                MinecraftClient client = MinecraftClient.getInstance();
-                // 为底部留出 80 像素的空白区域（这个区域不绘制任何内容，相当于预留文字空间）
-                int bottomMargin = 80;
-                // 由于不再绘制文字，textHeight 设为 0，但保留 bottomMargin 以确保二维码偏上
-                int availableHeight = height - bottomMargin;
-                int maxSize = Math.min(width, availableHeight) - 40;
-                float scale = Math.min((float) maxSize / imageWidth, (float) maxSize / imageHeight);
-                int drawWidth = (int) (imageWidth * scale);
-                int drawHeight = (int) (imageHeight * scale);
-                int x = (width - drawWidth) / 2;
-                int y = (availableHeight - drawHeight) / 2 + 10;
-                context.drawTexture(RenderPipelines.GUI_TEXTURED, QR_TEXTURE, x, y, 0, 0, drawWidth, drawHeight, drawWidth, drawHeight);
-            }
-        // 3. 绘制文字区域 (高35px 的背景条 + 两行文字)
-        int textY = height - 45;
-        int textHeight = 35;
-        // 文字背景条
-        //context.fill(0, textY - 5, width, textY + textHeight, 0xCC000000);
-        // 绘制文字
-        context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("请使用酷狗App扫描二维码"), width / 2, textY, 0xFFFFFF);
-        context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("按 ESC 取消，二维码将在3分钟后过期，请尽快扫码"), width / 2, textY + 15, 0xFFFFFF);
-        // 4. 最后调用 super.render (防止按钮等覆盖文字)
+        // 背景
+        context.fill(0, 0, width, height, 0xFF2B2B2B);
+
+        if (imageWidth > 0 && imageHeight > 0) {
+            int maxSize = Math.min(width, height) - 80;
+            float scale = Math.min((float) maxSize / imageWidth, (float) maxSize / imageHeight);
+            int drawWidth = (int)(imageWidth * scale);
+            int drawHeight = (int)(imageHeight * scale);
+            int x = (width - drawWidth) / 2;
+            int y = (height - drawHeight) / 2 - 20;
+
+            context.drawTexture(RenderPipelines.GUI_TEXTURED, QR_TEXTURE, x, y, 0, 0, drawWidth, drawHeight, drawWidth, drawHeight);
+        }
+
+        // 底部文字
+        context.fill(0, height - 50, width, height, 0x80000000);
+        context.drawCenteredTextWithShadow(client.textRenderer, title, width / 2, height - 40, 0xFFFFFF);
+        context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("按 ESC 取消"), width / 2, height - 25, 0xAAAAAA);
+
         super.render(context, mouseX, mouseY, delta);
     }
 
