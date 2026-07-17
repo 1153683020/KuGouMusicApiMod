@@ -4,9 +4,15 @@ import com.azlight.kugoumusicapimod.util.KugouApiClient;
 import com.azlight.kugoumusicapimod.util.KugouConfig;
 import com.azlight.kugoumusicapimod.util.KugouCrypto;
 import com.azlight.kugoumusicapimod.util.KugouUtils;
+import com.azlight.kugoumusicapimod.api.WxApi;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -386,5 +392,129 @@ public class LoginApi {
         opts.headers = new HashMap<>();
         opts.headers.put("x-router", "usercenter.kugou.com");
         return KugouApiClient.send(opts);
+    }
+    /**
+     * 微信登录
+     */
+    public static CompletableFuture<KugouApiClient.ApiResponse> loginByOpenPlat(String code, Map<String, String> cookie) {
+        long dateNow = System.currentTimeMillis();
+
+        // 第一步：用 code 换取 access_token 和 openid
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String url = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=" + WxApi.APPID + "&secret=" + WxApi.SECRET + "&code=" + code + "&grant_type=authorization_code";
+                String resp = httpGet(url); // 需要实现 httpGet 方法，从 WxApi 中复制
+                JsonObject json = JsonParser.parseString(resp).getAsJsonObject();
+                return json;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }).thenCompose(tokenJson -> {
+            if (!tokenJson.has("access_token") || !tokenJson.has("openid")) {
+                throw new RuntimeException("获取微信 token 失败: " + tokenJson);
+            }
+            String accessToken = tokenJson.get("access_token").getAsString();
+            String openid = tokenJson.get("openid").getAsString();
+
+            // 加密 access_token
+            String encryptJson = KugouCrypto.cryptoAesEncrypt(Map.of("access_token", accessToken), null, null).toString();
+            JsonObject encryptObj = JsonParser.parseString(encryptJson).getAsJsonObject();
+            String encStr = encryptObj.get("str").getAsString();
+            String aesKey = encryptObj.get("key").getAsString();
+
+            // RSA 加密
+            Map<String, Object> rsaData = new HashMap<>();
+            rsaData.put("clienttime_ms", dateNow);
+            rsaData.put("key", aesKey);
+            String pk = KugouCrypto.cryptoRSAEncrypt(rsaData, null).toUpperCase();
+
+            // t1/t2
+            KugouConfig config = KugouConfig.getInstance();
+            String guid = config.guid != null ? config.guid : UUID.randomUUID().toString();
+            String mac = config.mac != null ? config.mac : "02:00:00:00:00:00";
+            String devId = config.devId != null ? config.devId : KugouUtils.randomString(10).toUpperCase();
+            String t2Plain = guid + "|0f607264fc6318a92b9e13c65db7cd3c|" + mac + "|" + devId + "|" + dateNow;
+            String t2 = KugouCrypto.cryptoAesEncrypt(t2Plain, "fd14b35e3f81af3817a20ae7adae7020", "17a20ae7adae7020").toString();
+            String t1 = KugouCrypto.cryptoAesEncrypt("|" + dateNow, "5e4ef500e9597fe004bd09a46d8add98", "04bd09a46d8add98").toString();
+
+            // 构造请求体
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("dev", devId);
+            data.put("force_login", 1);
+            data.put("partnerid", 36);
+            data.put("clienttime_ms", dateNow);
+            data.put("t1", t1);
+            data.put("t2", t2);
+            data.put("t3", "MCwwLDAsMCwwLDAsMCwwLDA=");
+            data.put("openid", openid);
+            data.put("params", encStr);
+            data.put("pk", pk);
+
+            KugouApiClient.RequestOptions opts = new KugouApiClient.RequestOptions();
+            opts.baseURL = "https://gateway.kugou.com"; // 根据实际调整
+            opts.url = "/v6/login_by_openplat";
+            opts.method = "POST";
+            opts.data = new Gson().toJson(data);
+            opts.encryptType = "android";
+            opts.cookie = cookie;
+            opts.headers = new HashMap<>();
+            opts.headers.put("x-router", "login.user.kugou.com");
+            opts.clearDefaultParams = false;
+
+            return KugouApiClient.send(opts).thenApply(resp -> {
+                if (resp.status == 200 && resp.body instanceof JsonObject) {
+                    System.out.println("[WxLogin] 酷狗登录成功");
+                    JsonObject body = (JsonObject) resp.body;
+                    if (body.has("status") && body.get("status").getAsInt() == 1) {
+                        JsonObject dataObj = body.getAsJsonObject("data");
+                        if (dataObj != null && dataObj.has("secu_params")) {
+                            String secuParams = dataObj.get("secu_params").getAsString();
+                            String decryptKey = KugouCrypto.cryptoMd5(aesKey).substring(0, 32);
+                            String decryptIv = KugouCrypto.cryptoMd5(aesKey).substring(16, 32);
+                            String decrypted = KugouCrypto.cryptoAesDecrypt(secuParams, decryptKey, decryptIv);
+                            try {
+                                JsonObject tokenObj = JsonParser.parseString(decrypted).getAsJsonObject();
+                                for (String key : tokenObj.keySet()) {
+                                    resp.cookies.put(key, tokenObj.get(key).getAsString());
+                                }
+                            } catch (Exception e) {
+                                resp.cookies.put("token", decrypted);
+                                KugouApiClient.setToken(decrypted);
+                            }
+                        }
+                        safePutCookie(resp, "t1", dataObj, "t1");
+                        safePutCookie(resp, "token", dataObj, "token");
+                        safePutCookie(resp, "userid", dataObj, "userid");
+                        safePutCookie(resp, "vip_type", dataObj, "vip_type");
+                        safePutCookie(resp, "vip_token", dataObj, "vip_token");
+                        saveExpireTime(dataObj);
+                        if (resp.cookies.containsKey("token")) {
+                            KugouApiClient.setToken(resp.cookies.get("token"));
+                            KugouApiClient.setUserid(Long.parseLong(resp.cookies.getOrDefault("userid", "0")));
+                        }
+                        config.token = resp.cookies.get("token");
+                        config.userid = KugouApiClient.getUserid();
+                        config.save();
+                    }
+                }
+                return resp;
+            });
+        });
+    }
+
+    // 辅助方法：复制 WxApi 中的 httpGet
+    private static String httpGet(String urlString) throws Exception {
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+        BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) sb.append(line);
+        br.close();
+        conn.disconnect();
+        return sb.toString();
     }
 }
