@@ -15,6 +15,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
@@ -413,7 +415,9 @@ public class MusicCommand {
                             String cmd = "/kugou play " + hash + "," + albumId + "," + albumAudioId + "," + currentQuality;
                             Text songLine = Text.literal((i + 1) + ". " + name + " - " + singer + "  §a[播放: " + cmd + "]")
                                     .styled(style -> style
-                                            .withColor(Formatting.YELLOW)
+                                                    .withClickEvent(new ClickEvent.RunCommand(cmd))
+                                                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("点击播放")))
+                                                    .withColor(Formatting.YELLOW)
                                     );
                             source.sendFeedback(Text.literal("").append(songLine));
                         }
@@ -549,7 +553,7 @@ public class MusicCommand {
                 if (resp.status == 200 && resp.body instanceof JsonObject) {
                     JsonObject body = (JsonObject) resp.body;
                     if (body.has("status") && body.get("status").getAsInt() == 1) {
-                        source.sendFeedback(Text.literal("§a升级成功！畅听VIP已激活"));
+                        source.sendFeedback(Text.literal("§a升级成功！SVIP已激活"));
                     } else {
                         source.sendError(Text.literal("§c升级失败: " + body));
                     }
@@ -661,6 +665,8 @@ public class MusicCommand {
                                     String cmd = "/kugou playlist songs " + globalId;
                                     Text line = Text.literal((i + 1) + ". " + name + " [" + (pl.has("count") ? pl.get("count").getAsInt() : 0) + "首]")
                                             .styled(style -> style
+                                                    .withClickEvent(new ClickEvent.RunCommand(cmd))
+                                                    //.withHoverEvent(new HoverEvent.ShowText(Text.literal("点击播放")))
                                                     .withColor(Formatting.YELLOW)
                                             );
                                     source.sendFeedback(Text.literal("").append(line));
@@ -727,6 +733,8 @@ public class MusicCommand {
                                     String cmd = "/kugou play " + hash + "," + albumId + "," + mixSongId + "," + currentQuality;
                                     Text line = Text.literal((i + 1) + ". " + name + " - " + singer)
                                             .styled(style -> style
+                                                    .withClickEvent(new ClickEvent.RunCommand(cmd))
+                                                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("点击播放")))
                                                     .withColor(Formatting.GREEN)
                                             );
                                     source.sendFeedback(Text.literal("").append(line));
@@ -892,6 +900,8 @@ public class MusicCommand {
                     String cmd = "/kugou cloud play " + hash + "," + name + "," + audioId;
                     Text line = Text.literal((i + 1) + ". " + name)
                             .styled(style -> style
+                                    .withClickEvent(new ClickEvent.RunCommand(cmd))
+                                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("点击播放")))
                                     .withColor(Formatting.AQUA)
                             );
                     source.sendFeedback(Text.literal("").append(line));
