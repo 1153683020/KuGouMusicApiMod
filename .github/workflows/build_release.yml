@@ -65,7 +65,7 @@ jobs:
             fi
             
             # 重命名并复制到收集目录
-            NEW_NAME="MyMod-${VERSION}-${LOADER}.jar"
+            NEW_NAME="kugoumusicapimod-${VERSION}-${LOADER}.jar"
             cp "$JAR_PATH" "release-artifacts/$NEW_NAME"
             echo "✅ 已生成: $NEW_NAME"
             
@@ -86,8 +86,8 @@ jobs:
             
             本次发布包含以下模组加载器版本：
             - Fabric
-            - Forge  
-            - NeoForge
+            - Forge(不存在，后续移植)
+            - NeoForge（同上）
             
             触发提交: ${{ github.sha }}
         env:
