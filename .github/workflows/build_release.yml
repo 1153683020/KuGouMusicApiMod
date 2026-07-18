@@ -44,7 +44,7 @@ jobs:
           # 过滤出包含 '-' 的分支（假设这些就是符合 游戏版本-加载器 格式的分支）
           BRANCHES=()
           while read -r branch; do
-            if [[ -n "$branch" && "$branch" == *-* ]]; then
+            if [[ "$branch" =~ -[Ff]abric$ ]] || [[ "$branch" =~ -[Ff]orge$ ]] || [[ "$branch" =~ -[Nn]eo[Ff]orge$ ]]; then
               BRANCHES+=("$branch")
             fi
           done <<< "$all_branches"
