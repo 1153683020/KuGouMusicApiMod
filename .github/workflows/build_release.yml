@@ -35,7 +35,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           # ========== 在这里修改你需要构建的分支列表 ==========
-          BRANCHES=("1.21-Fabric" "1.21.1-Fabric" "1.21.11-Fabric")
+          BRANCHES=("1.21.1-Fabric" "1.20.1-Forge" "1.19.2-NeoForge")
           # ===================================================
 
           mkdir -p release-artifacts
@@ -69,14 +69,14 @@ jobs:
               continue
             fi
 
-            # 重命名：模组名-游戏版本-加载器-模组版本.jar
-            NEW_NAME="KugouMusicApimod-${GAME_VERSION}-${LOADER}-${VERSION}.jar"
+            # 重命名：KuGouMusicApiMod-游戏版本-加载器-模组版本.jar
+            NEW_NAME="KuGouMusicApiMod-${GAME_VERSION}-${LOADER}-${VERSION}.jar"
             cp "$JAR_PATH" "release-artifacts/$NEW_NAME"
             echo "✅ 已生成: $NEW_NAME"
 
-            # 清理当前构建，准备下一个分支
+            # 清理当前构建，但保留 release-artifacts 目录不被删除
             ./gradlew clean
-            git clean -fdx
+            git clean -fdx -e release-artifacts   # 排除收集目录，防止删除已生成的 jar
           done
 
       - name: 列出所有收集到的 Jar
