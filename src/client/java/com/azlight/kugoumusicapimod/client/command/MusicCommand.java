@@ -22,7 +22,6 @@ import net.minecraft.util.Formatting;
 
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 public class MusicCommand {
 
@@ -415,9 +414,9 @@ public class MusicCommand {
                             String cmd = "/kugou play " + hash + "," + albumId + "," + albumAudioId + "," + currentQuality;
                             Text songLine = Text.literal((i + 1) + ". " + name + " - " + singer + "  §a[播放: " + cmd + "]")
                                     .styled(style -> style
-                                                    .withClickEvent(new ClickEvent.RunCommand(cmd))
-                                                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("点击播放")))
-                                                    .withColor(Formatting.YELLOW)
+                                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("点击播放")))
+                                            .withColor(Formatting.YELLOW)
                                     );
                             source.sendFeedback(Text.literal("").append(songLine));
                         }
@@ -665,8 +664,7 @@ public class MusicCommand {
                                     String cmd = "/kugou playlist songs " + globalId;
                                     Text line = Text.literal((i + 1) + ". " + name + " [" + (pl.has("count") ? pl.get("count").getAsInt() : 0) + "首]")
                                             .styled(style -> style
-                                                    .withClickEvent(new ClickEvent.RunCommand(cmd))
-                                                    //.withHoverEvent(new HoverEvent.ShowText(Text.literal("点击播放")))
+                                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
                                                     .withColor(Formatting.YELLOW)
                                             );
                                     source.sendFeedback(Text.literal("").append(line));
@@ -733,8 +731,8 @@ public class MusicCommand {
                                     String cmd = "/kugou play " + hash + "," + albumId + "," + mixSongId + "," + currentQuality;
                                     Text line = Text.literal((i + 1) + ". " + name + " - " + singer)
                                             .styled(style -> style
-                                                    .withClickEvent(new ClickEvent.RunCommand(cmd))
-                                                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("点击播放")))
+                                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("点击播放")))
                                                     .withColor(Formatting.GREEN)
                                             );
                                     source.sendFeedback(Text.literal("").append(line));
@@ -900,8 +898,8 @@ public class MusicCommand {
                     String cmd = "/kugou cloud play " + hash + "," + name + "," + audioId;
                     Text line = Text.literal((i + 1) + ". " + name)
                             .styled(style -> style
-                                    .withClickEvent(new ClickEvent.RunCommand(cmd))
-                                    .withHoverEvent(new HoverEvent.ShowText(Text.literal("点击播放")))
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("点击播放")))
                                     .withColor(Formatting.AQUA)
                             );
                     source.sendFeedback(Text.literal("").append(line));
