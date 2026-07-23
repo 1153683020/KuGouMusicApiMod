@@ -15,9 +15,10 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-
+import net.minecraft.text.HoverEvent;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
 
@@ -238,6 +239,27 @@ public class MusicCommand {
                                         )
                                 )
                         )
+
+                        .then(ClientCommandManager.literal("recommend")
+                                .executes(ctx -> {
+                                    recommendSongs(ctx.getSource());
+                                    return 1;
+                                })
+                                .then(ClientCommandManager.literal("style")
+                                        .executes(ctx -> {
+                                            recommendStyle(ctx.getSource(), "");
+                                            return 1;
+                                        })
+                                        .then(ClientCommandManager.argument("tagids", StringArgumentType.greedyString())
+                                                .executes(ctx -> {
+                                                    String tagids = StringArgumentType.getString(ctx, "tagids");
+                                                    recommendStyle(ctx.getSource(), tagids);
+                                                    return 1;
+                                                })
+                                        )
+                                )
+                        )
+
                         .then(ClientCommandManager.literal("qrlogin")
                                 .executes(ctx -> {
                                     startQrLogin(ctx.getSource());
@@ -352,6 +374,192 @@ public class MusicCommand {
         });
     }
 
+    private static void recommendSongs(FabricClientCommandSource source) {
+        if (KugouApiClient.getDfid().equals("-")) {
+            source.sendError(Text.literal("§c设备正在初始化，请稍后再试"));
+            return;
+        }
+        Map<String, String> cookie = new HashMap<>();
+        cookie.put("dfid", KugouApiClient.getDfid());
+        cookie.put("token", KugouApiClient.getToken());
+        cookie.put("userid", String.valueOf(KugouApiClient.getUserid()));
+        cookie.put("KUGOU_API_MID", KugouApiClient.getMid());
+
+        source.sendFeedback(Text.literal("§e正在获取每日推荐..."));
+        RecommendApi.everydayRecommend("ios", cookie)
+                .thenAcceptAsync(resp -> {
+                    if (resp.status != 200 || !(resp.body instanceof JsonObject)) {
+                        MinecraftClient.getInstance().execute(() ->
+                                source.sendError(Text.literal("§c获取推荐失败，网络异常")));
+                        return;
+                    }
+                    JsonObject body = (JsonObject) resp.body;
+
+                    if (body.has("status") && body.get("status").getAsInt() != 1) {
+                        String err = body.has("message") ? body.get("message").getAsString() : "未知错误";
+                        MinecraftClient.getInstance().execute(() ->
+                                source.sendError(Text.literal("§c推荐失败: " + err)));
+                        return;
+                    }
+
+                    JsonArray songs = null;
+                    if (body.has("data") && body.get("data").isJsonObject()) {
+                        JsonObject dataObj = body.getAsJsonObject("data");
+                        if (dataObj.has("song_list") && dataObj.get("song_list").isJsonArray()) {
+                            songs = dataObj.getAsJsonArray("song_list");
+                        }
+                    }
+
+                    if (songs == null || songs.size() == 0) {
+                        MinecraftClient.getInstance().execute(() ->
+                                source.sendError(Text.literal("§c暂无推荐歌曲")));
+                        return;
+                    }
+
+                    JsonArray finalSongs = songs;
+                    MinecraftClient.getInstance().execute(() -> {
+                        int limit = Math.min(finalSongs.size(), 10);
+                        source.sendFeedback(Text.literal("§6===== 今日推荐 (" + limit + "/" + finalSongs.size() + ") ====="));
+                        for (int i = 0; i < limit; i++) {
+                            JsonObject song = finalSongs.get(i).getAsJsonObject();
+                            String hash = song.get("hash").getAsString();
+                            String albumId = song.get("album_id").getAsString();
+                            String mixSongId = song.get("mixsongid").getAsString();
+                            String displayName = song.get("filename").getAsString();
+
+                            String cmd = "/kugou play " + hash + "," + albumId + "," + mixSongId + "," + currentQuality;
+                            Text line = Text.literal((i + 1) + ". " + displayName)
+                                    .styled(style -> style
+                                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("§e点击播放")))
+                                            .withColor(Formatting.GREEN));
+                            source.sendFeedback(line);
+                        }
+                        if (finalSongs.size() > limit)
+                            source.sendFeedback(Text.literal("§7... 更多歌曲请在客户端查看 (共 " + finalSongs.size() + " 首)"));
+                    });
+                }, MinecraftClient.getInstance())
+                .exceptionally(e -> {
+                    MinecraftClient.getInstance().execute(() ->
+                            source.sendError(Text.literal("§c推荐异常: " + e.getCause().getMessage())));
+                    return null;
+                });
+    }
+
+    private static void recommendStyle(FabricClientCommandSource source, String tagids) {
+        if (KugouApiClient.getDfid().equals("-")) {
+            source.sendError(Text.literal("§c设备正在初始化，请稍后再试"));
+            return;
+        }
+        Map<String, String> cookie = new HashMap<>();
+        cookie.put("dfid", KugouApiClient.getDfid());
+        cookie.put("token", KugouApiClient.getToken());
+        cookie.put("userid", String.valueOf(KugouApiClient.getUserid()));
+        cookie.put("KUGOU_API_MID", KugouApiClient.getMid());
+
+        final String paramTagids = (tagids != null) ? tagids : "";
+        source.sendFeedback(Text.literal("§e正在获取风格推荐..."
+                + (paramTagids.isEmpty() ? "" : " 标签: " + paramTagids)));
+
+        RecommendApi.everydayStyleRecommend(paramTagids, cookie)
+                .thenAcceptAsync(resp -> {
+                    if (resp.status != 200 || !(resp.body instanceof JsonObject)) {
+                        MinecraftClient.getInstance().execute(() ->
+                                source.sendError(Text.literal("§c获取风格推荐失败，网络异常")));
+                        return;
+                    }
+                    JsonObject body = (JsonObject) resp.body;
+
+                    // 提取标签列表和歌曲列表
+                    JsonArray tags = null;
+                    JsonArray songs = null;
+                    if (body.has("data") && body.get("data").isJsonObject()) {
+                        JsonObject data = body.getAsJsonObject("data");
+                        // 尝试提取标签（字段可能为 tags 或 tag_info）
+                        if (data.has("tag_info") && data.get("tag_info").isJsonArray()) {
+                            tags = data.getAsJsonArray("tag_info");
+                        }
+                        // 提取歌曲（兼容多种结构）
+                        if (data.has("song_list") && data.get("song_list").isJsonArray()) {
+                            songs = data.getAsJsonArray("song_list");
+                        } else if (data.has("songs") && data.get("songs").isJsonArray()) {
+                            songs = data.getAsJsonArray("songs");
+                        } else if (data.has("songlist") && data.get("songlist").isJsonArray()) {
+                            songs = data.getAsJsonArray("songlist");
+                        } else if (data.has("list") && data.get("list").isJsonArray()) {
+                            songs = data.getAsJsonArray("list");
+                        }
+                    }
+
+                    // 转为 final 变量供 lambda 使用
+                    final JsonArray finalTags = tags;
+                    final JsonArray finalSongs = songs;
+
+                    // 如果没有指定标签，并且存在标签列表，则展示标签列表
+                    if (finalTags != null && finalTags.size() > 0 && paramTagids.isEmpty()) {
+                        MinecraftClient.getInstance().execute(() -> {
+                            source.sendFeedback(Text.literal("§6===== 可用风格标签 ====="));
+                            for (JsonElement el : finalTags) {
+                                JsonObject category = el.getAsJsonObject();
+                                String categoryName = category.has("name") ? category.get("name").getAsString() : "未知分类";
+                                if (category.has("child") && category.get("child").isJsonArray()) {
+                                    JsonArray children = category.getAsJsonArray("child");
+                                    source.sendFeedback(Text.literal("§e▸ " + categoryName));
+                                    for (JsonElement childEl : children) {
+                                        JsonObject child = childEl.getAsJsonObject();
+                                        String tagId = child.has("id") ? child.get("id").getAsString() : "?";
+                                        String tagName = child.has("name") ? child.get("name").getAsString() : "未知";
+                                        source.sendFeedback(Text.literal("   §a" + tagId + "§f - " + tagName));
+                                    }
+                                } else {
+                                    // 兼容无子标签的情况
+                                    String tagId = category.has("id") ? category.get("id").getAsString() : "?";
+                                    source.sendFeedback(Text.literal("§a" + tagId + "§f - " + categoryName));
+                                }
+                            }
+                            source.sendFeedback(Text.literal("§7输入 /kugou recommend style <标签ID> 即可筛选推荐，多个标签用逗号分隔"));
+                        });
+                    }
+
+                    // 展示歌曲列表（仅当指定了标签时才显示）
+                    if (!paramTagids.isEmpty()) {
+                        if (finalSongs != null && finalSongs.size() > 0) {
+                            MinecraftClient.getInstance().execute(() -> {
+                                int limit = Math.min(finalSongs.size(), 10);
+                                source.sendFeedback(Text.literal("§6===== 风格推荐 (" + limit + "/" + finalSongs.size() + ") ====="));
+                                for (int i = 0; i < limit; i++) {
+                                    JsonObject song = finalSongs.get(i).getAsJsonObject();
+                                    String name = song.has("filename") ? song.get("filename").getAsString()
+                                            : song.has("name") ? song.get("name").getAsString() : "未知歌曲";
+                                    String hash = song.has("hash") ? song.get("hash").getAsString() : "";
+                                    String albumId = "0";
+                                    if (song.has("album_id") && !song.get("album_id").isJsonNull())
+                                        albumId = song.get("album_id").getAsString();
+                                    String mixSongId = "0";
+                                    if (song.has("mixsongid") && !song.get("mixsongid").isJsonNull())
+                                        mixSongId = song.get("mixsongid").getAsString();
+                                    if (!hash.isEmpty()) {
+                                        Text line = Text.literal((i + 1) + ". " + name)
+                                                .styled(style -> style.withColor(Formatting.GREEN));
+                                        source.sendFeedback(line);
+                                    }
+                                }
+                                if (finalSongs.size() > limit)
+                                    source.sendFeedback(Text.literal("§7... 更多歌曲请输入完整列表查看"));
+                            });
+                        } else {
+                            MinecraftClient.getInstance().execute(() ->
+                                    source.sendError(Text.literal("§c未获取到风格推荐歌曲，请确认标签ID是否正确")));
+                        }
+                    }
+                }, MinecraftClient.getInstance())
+                .exceptionally(e -> {
+                    MinecraftClient.getInstance().execute(() ->
+                            source.sendError(Text.literal("§c风格推荐异常: " + e.getMessage())));
+                    return null;
+                });
+    }
+
     private static void searchSongs(FabricClientCommandSource source, String keyword) {
         if (KugouApiClient.getDfid().equals("-")) {
             source.sendError(Text.literal("§c设备正在初始化，请稍后再试"));
@@ -410,9 +618,11 @@ public class MusicCommand {
                                 albumAudioId = song.get("MixSongID").getAsString();
                             }
                             String cmd = "/kugou play " + hash + "," + albumId + "," + albumAudioId + "," + currentQuality;
-                            Text songLine = Text.literal((i + 1) + ". " + name + " - " + singer + "  §a[播放: " + cmd + "]")
+                            Text songLine = Text.literal((i + 1) + ". " + name + " - " + singer)
                                     .styled(style -> style
                                             .withColor(Formatting.YELLOW)
+                                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("§e点击播放")))
+                                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
                                     );
                             source.sendFeedback(Text.literal("").append(songLine));
                         }
@@ -661,6 +871,7 @@ public class MusicCommand {
                                     Text line = Text.literal((i + 1) + ". " + name + " [" + (pl.has("count") ? pl.get("count").getAsInt() : 0) + "首]")
                                             .styled(style -> style
                                                     .withColor(Formatting.YELLOW)
+                                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
                                             );
                                     source.sendFeedback(Text.literal("").append(line));
                                 }
@@ -727,6 +938,8 @@ public class MusicCommand {
                                     Text line = Text.literal((i + 1) + ". " + name + " - " + singer)
                                             .styled(style -> style
                                                     .withColor(Formatting.GREEN)
+                                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("§e点击播放")))
+                                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
                                             );
                                     source.sendFeedback(Text.literal("").append(line));
                                 }
@@ -892,6 +1105,8 @@ public class MusicCommand {
                     Text line = Text.literal((i + 1) + ". " + name)
                             .styled(style -> style
                                     .withColor(Formatting.AQUA)
+                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("§e点击播放")))
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
                             );
                     source.sendFeedback(Text.literal("").append(line));
                 }
@@ -1111,6 +1326,8 @@ public class MusicCommand {
         source.sendFeedback(Text.literal("§e/kugou user - 用户信息"));
         source.sendFeedback(Text.literal("§e/kugou quality <128|320|flac|high|viper_...> - 设置默认音质，不带参为显示当前音质"));
         source.sendFeedback(Text.literal("§e/kugou wxlogin - 微信扫码登录"));
+        source.sendFeedback(Text.literal("§e/kugou recommend - 每日歌曲推荐"));
+        source.sendFeedback(Text.literal("§e/kugou recommend style <标签列表> - 风格推荐（多个标签用逗号分隔，如 1,2 或 S14,S15）,不填标签则查看可用标签"));
     }
 
 }

@@ -273,7 +273,6 @@ public class KugouCrypto {
         byte[] buffer = normalizeBuffer(data);
         String inputJson = new String(buffer, StandardCharsets.UTF_8);
         String pem = isLite ? PUBLIC_LITE_RAS_KEY : PUBLIC_RAS_KEY;
-        System.out.println("[RSA input] " + gson.toJson(data));
         try {
             PublicKey publicKey = getPublicKeyFromPem(pem);
             Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");

@@ -53,7 +53,6 @@ public class KugouMusicApiMod implements ClientModInitializer {
                                 KugouApiClient.setDfid(dfid);
                                 config.dfid = dfid;
                                 config.save();
-                                System.out.println("[Kugou] 设备注册成功，dfid: " + dfid);
                             }
                         }
                     }
