@@ -539,8 +539,12 @@ public class MusicCommand {
                                     if (song.has("mixsongid") && !song.get("mixsongid").isJsonNull())
                                         mixSongId = song.get("mixsongid").getAsString();
                                     if (!hash.isEmpty()) {
+                                        String cmd = "/kugou play " + hash + "," + albumId + "," + mixSongId + "," + currentQuality;
                                         Text line = Text.literal((i + 1) + ". " + name)
-                                                .styled(style -> style.withColor(Formatting.GREEN));
+                                                .styled(style -> style
+                                                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("§e点击播放")))
+                                                        .withColor(Formatting.GREEN));
                                         source.sendFeedback(line);
                                     }
                                 }
