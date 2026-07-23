@@ -43,6 +43,10 @@
 - `/kugou stop` – 停止
 - `/kugou quality <128|320|flac|...>` – 设置默认音质，如果不携带参数则为显示当前音质
 
+### 每日推荐
+- `/kugou recommend` - 获取每日推荐
+- `/kugou recommend style <标签列表>` - 风格推荐（多个标签用逗号分隔，如 1,2 或 S14,S15）,不填标签则查看可用标签
+
 ### 歌词
 - `/kugou lyric off` – 关闭歌词（默认）
 - `/kugou lyric single` – 单语歌词
